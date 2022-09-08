@@ -1,0 +1,3 @@
+customtkinter==4.1.0
+mysql-connector-python==8.0.28
+pyTelegramBotAPI==4.7.0
