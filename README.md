@@ -1,5 +1,6 @@
 # Library-Management-System(GUI)
-A Client-Server Architecture Based Library Management System with a decent looking GUI!
+A Client-Server Architecture Based Library Management System with a decent looking GUI!  
+***PS: It was my class 12th Computer Science Project!!***
 
 
 # Installation
