@@ -2,6 +2,7 @@ import tkinter as tk
 from time import sleep
 import mysql.connector as conn
 from tkinter import messagebox 
+import os
 import csv
 from datetime import date
 import customtkinter as ck
@@ -50,29 +51,31 @@ class main:
         self.reset.bind("<Key>", lambda key: self.listener(key,self.reset))
         self.reset.withdraw()
         
-        self.about = ck.CTk()
-        self.about.title("About Us")
-        self.about.bind("<Key>", lambda key: self.listener(key,self.about))
-        self.about.withdraw()
-
+        self.fine = 50
 
     # -----------------------------------------MAIN FUNCTIONS-----------------------------------------
     
     def listener(self, key, window):
+        win_title = str(window.wm_title())
+
         if key.keysym == "F11":
             if window.wm_attributes()[7] == 0:
                 window.attributes("-fullscreen", True)
             else:
                 window.attributes("-fullscreen", False)
-        
+
+        elif key.keysym == "F1":
+            self.reset_fine_gui()
+
         elif key.keysym == "F2":
             self.reset_password_gui()
         
-        elif key.keysym == "F1":
+        elif key.keysym == "F3":
             if window.appearance_mode == 1:
                 window.set_appearance_mode("light")
             else:
                 window.set_appearance_mode("dark")
+        
         
 
     def on_closing(self):
@@ -85,6 +88,9 @@ class main:
 
     def reset_on_closing(self):
         self.reset.withdraw()
+    
+    def reset_fine_on_closing(self):
+        self.reset_fine.withdraw()
 
     def win_return_on_closing(self):
         self.win_return.withdraw()
@@ -168,17 +174,22 @@ class main:
 
             days = (date1 - date2).days
             if days > 7:
-                self.cursor.execute("UPDATE ISSUED_BOOKS SET FINE=%s WHERE STUDENT_ID=%s", ((days-7)*50, return_stdid.get()))
+                self.cursor.execute("UPDATE ISSUED_BOOKS SET FINE=%s WHERE STUDENT_ID=%s", ((days-7)*self.fine, return_stdid.get()))
+                self.db.commit()
 
             self.cursor.execute("SELECT BOOK_ID FROM ISSUED_BOOKS WHERE STUDENT_ID="+return_stdid.get())
             return_bid = self.cursor.fetchall()[-1][0]
+
             self.cursor.execute("UPDATE ISSUED_BOOKS SET RETURN_DATE=%s WHERE STUDENT_ID=%s", (return_date.get(), return_stdid.get()))
+            self.db.commit()
+
             self.cursor.execute("UPDATE BOOKS SET QTY=QTY+1 WHERE BOOK_ID="+str(return_bid))
+            self.db.commit()
+
             messagebox.showinfo("Info", "Success!")
 
         except Exception as e:
-            print(e)
-            messagebox.showerror("Error", "Something Went Wrong!")
+            messagebox.showerror("Error", f"Something Went Wrong!\n{e}")
 
     
     def view_books(self):
@@ -200,6 +211,9 @@ class main:
                 writer.writerows(rows)
 
             messagebox.showinfo(title="Successfull", message="CSV file has been successfully created!")
+
+            sleep(1)
+            os.startfile(filepath)
         except:
             messagebox.showerror("Error", "Something Went Wrong!")
 
@@ -213,8 +227,11 @@ class main:
         self.cursor.execute("SELECT * FROM ISSUED_BOOKS")
         rows = self.cursor.fetchall()
 
-        path = fd.asksaveasfile().name
-
+        try:
+            path = fd.asksaveasfile().name
+        except:
+            messagebox.showerror("Error","Please try to save the file with different name (if it is running in background)!")
+   
         try:
             with open(path, 'w') as file:
                 writer = csv.writer(file)
@@ -222,6 +239,9 @@ class main:
                 writer.writerows(rows)
 
             messagebox.showinfo(title="Successfull", message="CSV file made!!")
+            sleep(1)
+            os.startfile(path)
+
         except:
             messagebox.showerror("Error", "Something Went Wrong!")
 
@@ -239,9 +259,13 @@ class main:
         
         self.cursor.execute("SELECT * FROM LIB_USERS")
         query2 = self.cursor.fetchall()[0]
+        
+        if new_passwrd_hash == old_passwrd_hash:
+            messagebox.showinfo("Info", "Old Password and New Password are same!")
 
-        if query1 == query2:
+        elif query1 == query2:
             messagebox.showerror("Error", "Username or Old Password is/are incorrect.")
+        
         else:
             messagebox.showinfo("Info", "Password Changed Successfully.")
 
@@ -250,7 +274,8 @@ class main:
 
 
 
-    # -----------------------------------------GUI START----------------------------------------
+
+    # -----------------------------------------GUI START-----------------------------------------
 
     def main_window(self):
         self.root.deiconify()
@@ -258,11 +283,12 @@ class main:
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         menu = tk.Menu(self.root)
-        
+         
         help = tk.Menu(menu, tearoff = 0)
         menu.add_cascade(label ='Help', menu = help)
-        help.add_command(label ='Reset Password    F2', command = self.reset_password_gui)
-        
+        help.add_command(label ='Change Fine Amount    F1', command = self.reset_fine_gui)
+        help.add_command(label ='Reset Password        F2', command = self.reset_password_gui)
+
         ck.CTkLabel(self.root, text="Welcome", text_font=("Roboto",25)).place(relx=0.25, rely=0.1, relheight=0.1, relwidth=0.5) 
 
         add_btn = ck.CTkButton(self.root, text_font=("Roboto",16), text="Add Book", command=self.add_books_gui)
@@ -297,7 +323,6 @@ class main:
         add_frame = ck.CTkFrame(self.win_add, bg='black')
         add_frame.place(relx=0.27, rely=0.4, relheight=0.5, relwidth=0.5)
 
-
         ck.CTkLabel(add_frame, text="Book ID:", text_font=("Roboto",18)).place(relx=0.05, rely=0.03)
 
         book_id = ck.CTkEntry(add_frame, width=480, text_font=("Roboto",18))
@@ -327,6 +352,7 @@ class main:
         submit.place(relx=0.40, rely=0.75, relwidth=0.4)
         
         self.win_add.mainloop()
+
 
     def delete_book_gui(self):
         self.win_del.protocol("WM_DELETE_WINDOW", self.win_del_on_closing)
@@ -419,6 +445,18 @@ class main:
 
         self.win_return.mainloop()
 
+    def reset_fine_gui(self):
+        my_fine = ck.CTkInputDialog(self.root, title="Fine", text="Enter your desired fine.")
+        my_fine = my_fine.get_input()
+
+        try:
+            self.fine = int(my_fine)
+            messagebox.showinfo("Info","Fine Updated Successfully!")
+            with open("info.txt",'w') as file:
+                file.write(f"Username:{self.mysql_username}\nPassword:{self.mysql_password}\nFine:{my_fine}")
+        except:
+            messagebox.showerror("Error", "Something went wrong!")
+
     def reset_password_gui(self):
         self.reset.protocol("WM_DELETE_WINDOW", self.reset_on_closing)
         self.reset.deiconify()
@@ -434,51 +472,83 @@ class main:
         
         old_passwrd = ck.CTkEntry(self.reset, width=480, show="*")
         old_passwrd.place(relx=0.43, rely=0.45)
-        ck.CTkButton(self.reset, text="Show Password", command=lambda: old_passwrd.config(show="")).place(relx=0.75, rely=0.45)
-        ck.CTkButton(self.reset, text="Hide Password", command=lambda: old_passwrd.config(show="*")).place(relx=0.84, rely=0.45)
-        
+
+        hide_var1 = ck.StringVar(value="on")
+
+        def switch_event1():
+            if hide_var1.get() == "on":
+                old_passwrd.configure(show = "*")
+            else:
+                old_passwrd.configure(show = "")
+
+        hide_switch = ck.CTkSwitch(master=self.reset, text="Hide Password", command=switch_event1,
+                                        variable=hide_var1, onvalue="on", offvalue="off", text_font=("Roboto",13))
+        hide_switch.place(relx=0.76, rely=0.46)
+
+
         ck.CTkLabel(self.reset, text="New Password: ", text_font=("Roboto",20)).place(relx=0.26, rely=0.55)
         new_passwrd = ck.CTkEntry(self.reset, width=480, show="*")
         new_passwrd.place(relx=0.43,rely=0.55)
-        ck.CTkButton(self.reset, text="Show Password", command=lambda: new_passwrd.config(show="")).place(relx=0.75, rely=0.55)
-        ck.CTkButton(self.reset, text="Hide Password", command=lambda: new_passwrd.config(show="*")).place(relx=0.84, rely=0.55)
-        
+
+        hide_var2 = ck.StringVar(value="on")
+
+        def switch_event2():
+            if hide_var2.get() == "on":
+                new_passwrd.configure(show = "*")
+            else:
+                new_passwrd.configure(show = "")
+
+        hide_switch2 = ck.CTkSwitch(master=self.reset, text="Hide Password", command=switch_event2,
+                                        variable=hide_var2, onvalue="on", offvalue="off", text_font=("Roboto",13))
+        hide_switch2.place(relx=0.76, rely=0.55)
+
+
         reset_btn = ck.CTkButton(self.reset, text="Submit", width=240, text_font=("Roboto",18), command=lambda: self.reset_password(new_passwrd.get(), username.get(), old_passwrd.get()))
         reset_btn.place(relx=0.46, rely=0.7)
 
         self.reset.mainloop()
 
     def load(self):        
-        load = tk.Tk()
-        load.title("Library")
-        load.attributes('-fullscreen', True)
-        load.config(bg='black')
+        ck.set_appearance_mode("dark")
 
-        tk.Label(load, background='black', text="Army Public School, New Cantt", font=("courier",25), foreground="lime").place(relx=0.30, rely=0.02)
-        tk.Label(load, background='black', text="Prayagraj", font=("courier",25), foreground="lime").place(relx=0.42, rely=0.06)
-        tk.Label(load, background='black', text="Library Management System", font=("courier",25), foreground="lime").place(relx=0.32, rely=0.12)
-        tk.Label(load, background='black', text="Loading...", font=("courier",25), foreground="lime").place(x=330, y=430)
-        
-        for i in range(40):
-            tk.Label(load, bg='black', height=1, width=2).place(x=(i*25)+320, y=480)
+        load = ck.CTk()
+        load.title("Loading")
+        load.attributes("-fullscreen",True)
+        load.config(bg = "black")
+
+        ck.CTkLabel(load, text="Army Public School, New Cantt", text_font=("Courier New",25), text_color="lime").place(relx=0.3, rely=0.05)
+        ck.CTkLabel(load, text="Prayagraj", text_font=("Courier New",25), text_color="lime").place(relx=0.42, rely=0.11)
+        ck.CTkLabel(load, text="Library Management System", text_font=("Courier New",25), text_color="lime").place(relx=0.32, rely=0.17)
+        ck.CTkLabel(load, text="Loading...", text_font=("Courier New",25), text_color="lime").place(relx=0.17, rely=0.43)
+
+        box = 0.15
+        for i in range(35):
+            ck.CTkLabel(load, text="", bg_color='black', height=20, width=20).place(relx=(box)+0.02, rely=0.5)
+            box += 0.02 
 
         for i in range(3):
-            for j in range(40):
-                tk.Label(load, bg="lime", height=1, width=2).place(x=(j*25)+320, y=480)
+            box = 0.15
+            for j in range(35):
+                ck.CTkLabel(load, text="", bg_color="lime", height=20, width=20).place(relx=(box)+0.02, rely=0.5)
                 sleep(0.02)
-                load.update()    
-            for j in range(40):
-                tk.Label(load, bg='black', height=1, width=2).place(x=(j*25)+320, y=480)
+                box += 0.02
+                load.update()
+            box = 0.15
+            
+            for j in range(35):
+                ck.CTkLabel(load, text="", bg_color='black', height=20, width=20).place(relx=(box)+0.02, rely=0.5)
                 sleep(0.02)
+                box += 0.02
                 load.update()
         load.destroy()
+
 
     def check_creds(self, screen, username, passwrd):
         try:
             self.db = conn.connect(host='localhost', user=self.mysql_username, password=self.mysql_password, database='library')
             self.cursor = self.db.cursor()
         except conn.Error:
-            messagebox.showerror("Error", "Something went wrong!\nUpdate your MySQL Credentials in mysql_creds file (if incorrect)!")
+            messagebox.showerror("Error", 'Something went wrong!\nUpdate your MySQL Credentials in "info.txt" file (if incorrect)!')
 
         self.cursor.execute("SELECT * FROM lib_users")
         result = self.cursor.fetchall()[0]
@@ -490,6 +560,7 @@ class main:
             self.main_window()
         else:
             messagebox.showerror("Error", "Invalid Credentials.")
+
 
     def login(self):
         login_screen =ck.CTk()
@@ -509,8 +580,17 @@ class main:
         passwrd = ck.CTkEntry(login_screen, width=360, show="*")
         passwrd.place(relx=0.35, rely=0.6)
 
-        ck.CTkButton(login_screen, text="Show Password", command=lambda: passwrd.config(show="")).place(relx=0.74, rely=0.6)
-        ck.CTkButton(login_screen, text="Hide Password", command=lambda: passwrd.config(show="*")).place(relx=0.87, rely=0.6)
+        hide_var = ck.StringVar(value="on")
+
+        def switch_event():
+            if hide_var.get() == "on":
+                passwrd.configure(show = "*")
+            else:
+                passwrd.configure(show = "")
+
+        hide_switch = ck.CTkSwitch(master=login_screen, text="Hide Password", command=switch_event,
+                                        variable=hide_var, onvalue="on", offvalue="off", text_font=("Roboto",13))
+        hide_switch.place(relx=0.75, rely=0.61)
 
         submit = ck.CTkButton(login_screen, text="Submit", text_font=("Roboto",12), command=lambda: self.check_creds(login_screen, username, passwrd))
         submit.place(relx=0.45, rely=0.8)
@@ -523,8 +603,8 @@ class main:
         my_pass = ck.CTkInputDialog(self.root, title="Password", text="Enter your mysql password.")
         my_pass = my_pass.get_input()
 
-        with open("mysql_creds.txt",'w') as file:
-            file.write(f"Username:{my_user}\nPassword:{my_pass}")
+        with open("info.txt",'w') as file:
+            file.write(f"Username:{my_user}\nPassword:{my_pass}\nFine:50")
 
         self.mysql_password = my_pass
         self.mysql_username = my_user
@@ -536,11 +616,12 @@ class main:
     # -----------------------------------------------GUI END-----------------------------------------------
 
 screen = main()
-if exists("mysql_creds.txt"):
-    with open("mysql_creds.txt",'r') as file:
-        creds = file.read().split('\n')
-        screen.mysql_username = creds[0].split(':')[1]
-        screen.mysql_password = creds[1].split(':')[1]
+if exists("info.txt"):
+    with open("info.txt",'r') as file:
+        info = file.read().split('\n')
+        screen.mysql_username = info[0].split(':')[1]
+        screen.mysql_password = info[1].split(':')[1]
+        screen.fine = int(info[2].split(":")[1])
     screen.login()
 else:    
     screen.start()
