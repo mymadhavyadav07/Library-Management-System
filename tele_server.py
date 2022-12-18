@@ -1,4 +1,3 @@
-import json
 from tkinter import messagebox
 import mysql.connector as conn
 import telebot
@@ -8,17 +7,20 @@ import csv
 try:
     with open("tele_creds.txt",'r') as file:
         contents = file.read().split("\n")
-        MYSQL_USERNAME = contents[0].split(":")[1]
-        MYSQL_PASSWORD = contents[1].split(":")[1]
-        API_TOKEN = contents[2].split(":")[1] 
+        MYSQL_USERNAME = contents[0].partition(":")[2]
+        MYSQL_PASSWORD = contents[1].partition(":")[2]
+        API_TOKEN = contents[2].partition(":")[2] 
         file.close()
 except FileNotFoundError:
     messagebox.showerror("Error", "tele_creds.txt not found on current path!!")
 
 CHAT_ID = ''
+HELP = f"""COMMANDS: 
+/help - show this message
+/view - view all books
+/issued - view all issued books"""
 
-
-db = conn.connect(host = 'localhost', username = MYSQL_USERNAME, password = MYSQL_PASSWORD, database='library')
+db = conn.connect(host = 'localhost', user = MYSQL_USERNAME, password = MYSQL_PASSWORD, database='library')
 cursor = db.cursor()
 
 bot = telebot.TeleBot(API_TOKEN)
@@ -35,6 +37,11 @@ def online_alert():
 
 online_alert()
 
+@bot.message_handler(commands = ['help'])
+def help(message):
+    bot.send_message(message.chat.id, HELP)
+
+
 @bot.message_handler(commands = ['start'])
 def start(message):
     cursor.execute("SELECT * FROM TELEBOT WHERE STUDENT_ID=%s",(message.chat.id,))
@@ -45,11 +52,8 @@ def start(message):
         cursor.execute("INSERT INTO TELEBOT(STUDENT_ID) VALUES(%s)", (message.chat.id,))
         db.commit()
         
-    HELP = f"""Welcome To {BOT_NAME}
-Commands - 
-/help - show this message
-/view - view all books
-/issued - view all issued books"""
+
+    bot.send_message(message.chat.id, f"Welcome to {BOT_NAME}")
     bot.send_message(message.chat.id, HELP)
 
 
@@ -80,14 +84,8 @@ def view(message):
 
     bot.send_document(message.chat.id, document=buf)
 
+
 @bot.message_handler(commands = ['issued'])
-def start(message):
-    msg = bot.send_message(message.chat.id, "Enter Your Name.")
-    bot.register_next_step_handler(msg, generate_csv)
-
-
-
-@bot.callback_query_handler(func = lambda query:True)
 def generate_csv(query):
     student_name = query.text
 
