@@ -664,8 +664,7 @@ class main:
 
 current_version = 'v1.0'
 
-repo_url = "https://github.com/mymadhavyadav07/Library-Management-System/archive/refs/heads/main.zip"
-  
+
 response = requests.get("https://api.github.com/repos/mymadhavyadav07/Library-Management-System/releases/latest")
 try:
     reply = response.json()['message']
@@ -673,6 +672,8 @@ try:
         print("No version available")
 except KeyError:
     version = response.json()['name']
+    repo_url = f"https://github.com/mymadhavyadav07/Library-Management-System/archive/refs/tags/{version}.zip"
+    
     if current_version < version:
         reply = messagebox.askyesno("Info","New version is available.\nDo you want an update??")
         if reply:
