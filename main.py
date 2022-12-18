@@ -4,6 +4,9 @@ import mysql.connector as conn
 from tkinter import messagebox 
 import os
 import csv
+import requests
+import pickle
+import base64
 from datetime import date
 import customtkinter as ck
 import hashlib
@@ -52,6 +55,8 @@ class main:
         self.reset.withdraw()
         
         self.fine = 50
+        self.fields = ["BOOK_ID",'BOOK_NAME','AUTHOR_NAME','BOOK_PRICE','QTY']
+
 
     # -----------------------------------------MAIN FUNCTIONS-----------------------------------------
     
@@ -75,8 +80,10 @@ class main:
                 window.set_appearance_mode("light")
             else:
                 window.set_appearance_mode("dark")
-        
-        
+
+        elif key.keysym == "F5":
+            self.add_books_csv()
+
 
     def on_closing(self):
         confirm = messagebox.askquestion("Confirm", "Do you really want to quit?")
@@ -269,9 +276,30 @@ class main:
         else:
             messagebox.showinfo("Info", "Password Changed Successfully.")
 
+    def add_books_csv(self):
+        with open("csv_books.csv","r") as file:
+            reader = csv.reader(file)
+            fields = next(reader)
+            data = [i for i in reader]
+
+            if data == []:
+                messagebox.showinfo('Info","Please enter some data in "csv_books.csv file!"')
+    
+            elif data[0][0] == 'BOOK_ID':
+                messagebox.showinfo("Info","Please enter column names in the very first row of the csv file!")
+            
+            else:
+                try:
+                    for i in data:
+                        self.cursor.execute("INSERT INTO BOOKS VALUES(%s, %s, %s, %s, %s)",(i[0],i[1],i[2],i[3],i[4]))
+                        self.db.commit()
+                    messagebox.showinfo("Success","Data inserted successfully!!")
+
+                except:
+                    messagebox.showerror("Error","Something went wrong!")
+    
+
     # -----------------------------------------MAIN FUNCTIONS END--------------------------------
-
-
 
 
 
@@ -288,6 +316,7 @@ class main:
         menu.add_cascade(label ='Help', menu = help)
         help.add_command(label ='Change Fine Amount    F1', command = self.reset_fine_gui)
         help.add_command(label ='Reset Password        F2', command = self.reset_password_gui)
+        help.add_command(label="Add Books (via csv) F5", command=self.add_books_csv)
 
         ck.CTkLabel(self.root, text="Welcome", text_font=("Roboto",25)).place(relx=0.25, rely=0.1, relheight=0.1, relwidth=0.5) 
 
@@ -452,8 +481,11 @@ class main:
         try:
             self.fine = int(my_fine)
             messagebox.showinfo("Info","Fine Updated Successfully!")
-            with open("info.txt",'w') as file:
-                file.write(f"Username:{self.mysql_username}\nPassword:{self.mysql_password}\nFine:{my_fine}")
+            with open("info.dat",'wb') as file:
+                data = {"username":self.mysql_username,"password":self.mysql_password,"fine":self.fine}
+                data = f'hafhahgha[adauhaicnacb[]a[afag=+{str(data)}+ajkfhacuagugxuabjrbjakajajda=-=-===[]agag'.encode("ascii")
+                data = base64.b64encode(data)
+                pickle.dump(data,file)
         except:
             messagebox.showerror("Error", "Something went wrong!")
 
@@ -548,7 +580,11 @@ class main:
             self.db = conn.connect(host='localhost', user=self.mysql_username, password=self.mysql_password, database='library')
             self.cursor = self.db.cursor()
         except conn.Error:
-            messagebox.showerror("Error", 'Something went wrong!\nUpdate your MySQL Credentials in "info.txt" file (if incorrect)!')
+            reply = messagebox.askyesno("Error","Incorrect MySQL Username/Password!!\nDo you want to update your MySQL credentials?")
+            if reply:
+                self.start()
+            else:
+                exit()
 
         self.cursor.execute("SELECT * FROM lib_users")
         result = self.cursor.fetchall()[0]
@@ -600,28 +636,60 @@ class main:
     def start(self):
         my_user = ck.CTkInputDialog(self.root, title="Username", text="Enter your mysql username.")
         my_user = my_user.get_input()
+    
         my_pass = ck.CTkInputDialog(self.root, title="Password", text="Enter your mysql password.")
         my_pass = my_pass.get_input()
 
-        with open("info.txt",'w') as file:
-            file.write(f"Username:{my_user}\nPassword:{my_pass}\nFine:50")
+        fine = ck.CTkInputDialog(self.root, title="Fine", text="Enter desired fine amount.")
+        fine = fine.get_input()
 
-        self.mysql_password = my_pass
-        self.mysql_username = my_user
+        try:
+            self.db = conn.connect(host='localhost', user=my_user, password=my_pass, db='library')
+            self.cursor = self.db.cursor()
 
-        self.db=conn.connect(host='localhost', user=my_user, password=my_pass, db='library')
-        self.cursor = self.db.cursor()
-        self.login()            
+            self.mysql_password = my_pass
+            self.mysql_username = my_user
+
+            with open("info.dat",'wb') as file:
+                data = {"username":my_user,"password":my_pass,"fine":fine}
+                data = f'hafhahgha[adauhaicnacb[]a[afag=+{str(data)}+ajkfhacuagugxuabjrbjakajajda=-=-===[]agag'.encode("ascii")
+                data = base64.b64encode(data)
+                pickle.dump(data,file)
+        except:
+            messagebox.showerror("Error","Something went wrong!!\nTry Checking your MySQL Credentials!")
+        
+        self.login()
 
     # -----------------------------------------------GUI END-----------------------------------------------
 
+current_version = 'v1.0'
+
+repo_url = "https://github.com/mymadhavyadav07/Library-Management-System/archive/refs/heads/main.zip"
+  
+response = requests.get("https://api.github.com/repos/mymadhavyadav07/Library-Management-System/releases/latest")
+try:
+    reply = response.json()['message']
+    if reply == "Not Found":
+        print("No version available")
+except KeyError:
+    version = response.json()['name']
+    if current_version < version:
+        reply = messagebox.askyesno("Info","New version is available.\nDo you want an update??")
+        if reply:
+            r = requests.get(repo_url)
+            with open(f"Library-Management-System({version}).zip",'wb') as f:
+                f.write(r.content)
+            messagebox.showinfo("Info","Please switch to the new version :)")    
+            exit()
+
 screen = main()
-if exists("info.txt"):
-    with open("info.txt",'r') as file:
-        info = file.read().split('\n')
-        screen.mysql_username = info[0].split(':')[1]
-        screen.mysql_password = info[1].split(':')[1]
-        screen.fine = int(info[2].split(":")[1])
+if exists("info.dat"):
+    with open("info.dat",'rb') as file:
+        info = pickle.load(file)
+        info = eval(base64.b64decode(info).decode("ascii").split("+")[1])
+        screen.mysql_username = info['username']
+        screen.mysql_password = info['password']
+        screen.fine = int(info["fine"])
     screen.login()
 else:    
     screen.start()
