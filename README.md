@@ -28,7 +28,7 @@ Password: `toor`
 
 
 # Lastly...
-### Star this repo pweez ⭐(stop ignoring this message)
+### Star this repo please ⭐(stop ignoring this message)
 
 Made with lots of ❤ and dedication by **Madhav Yadav**!!
 
