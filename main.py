@@ -127,7 +127,7 @@ class main:
 
     def delete_book(self, del_book_id):
         try:
-            self.cursor.execute('delete from books where BOOK_ID='+del_book_id.get())
+            self.cursor.execute('delete from books where BOOK_ID=' + del_book_id.get())
             self.db.commit()
             messagebox.showinfo("Success", 'Book deleted successfully!')
         except:
