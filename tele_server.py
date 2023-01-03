@@ -127,4 +127,3 @@ def generate_csv(query):
 
 
 bot.infinity_polling()
-
